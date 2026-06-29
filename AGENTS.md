@@ -4,11 +4,12 @@ Guidance for AI agents (and humans) working in this repository.
 
 ## What this project is
 
-`neighbor-attention` is a research codebase for **implementing and experimenting
+`packed_tensor` is a research codebase for **implementing and experimenting
 with new variants of neighborhood attention**. The goal is primarily to implement
-support for varlen natten. I.e., neighborhood attention that works for a batch
-of different sequence lengths. We also want to compare multiple backend implementations 
-of the same op for correctness and performance.
+support for multi-dimensional packed tensors and important operations, like convolutions
+and neighborhood attention. I.e., we want to support batches of images, where each image 
+may have different resolutions and aspect ratios. We also want to compare multiple backend 
+implementations of the same op for correctness and performance.
 
 This is experimental research code. Prefer clarity and easy comparison between
 variants over premature abstraction. It is fine to have several parallel
@@ -44,7 +45,7 @@ Keep each backend in its own subtree so they don't bleed into each other.
 Suggested shape (create directories as needed):
 
 ```
-varlen_natten/
+src/packed_tensor/natten/
   pytorch/      # eager + flex_attention impls
   triton/       # triton kernels + wrappers
   cuda/         # CUDA sources + torch extension bindings
@@ -62,7 +63,7 @@ same definition.
 
 - Use **uv** for everything. Do not invoke `pip` directly.
 - Python: see `.python-version` (currently 3.10), constraint `>=3.10`.
-- Build backend: hatchling (see `pyproject.toml`).
+- Build backend: `uv_build` (see `pyproject.toml`).
 
 Common commands:
 
@@ -71,10 +72,12 @@ uv sync                       # create/update the environment
 uv add <pkg>                  # add a runtime dependency
 uv add --dev <pkg>            # add a dev/test dependency
 uv run python -m ...          # run code inside the project env
-uv run pytest                 # run the test suite
+uv run pytest test/           # run the test suite
+uv run ruff check src/        # check that ruff format checks pass
+uv run ruff format src/       # use ruff to format the source
 ```
 
-When adding a dependency, update `pyproject.toml` and rnu `uv sync` so the
+When adding a dependency, update `pyproject.toml` and run `uv sync` so the
 lockfile stays up to date.
 
 ## Correctness
@@ -105,19 +108,23 @@ Performance is tracked with **benchmarks** measuring throughput and memory use.
 
 - Benchmarks live in `benchmarks/` and should report both latency/throughput and
   peak memory.
-- Compare new variants/backends against existing ones and against a sensible
-  baseline (e.g. dense attention or `flex_attention`).
+- Compare new variants/backends against existing ones and against sensible
+  baselines (e.g. dense attention or `flex_attention`).
 - Keep benchmark configs explicit and reproducible (shapes, dtype, device, warmup
   and iteration counts). Synchronize the device before timing.
 - Performance claims should be backed by a benchmark run, not asserted.
+- Benchmark results should be easily parseable.
 
 ## Conventions for agents
 
 - **Don't unify backends prematurely.** Parallel implementations are expected;
   avoid refactors that couple them just to remove duplication.
+- **Don't over comment.** Do not use inline comments to explain simple code.
 - **Reference first.** Define new behavior in the PyTorch/FlexAttention reference,
   add a correctness test, then port to Triton/CUDA/CuteDSL.
 - **Verify your work.** Run `uv run pytest` for correctness; run the relevant
   benchmark for any performance-related change. Report actual results.
+- **Ask for reviews.** If you modify existing code, point it out and ask for it
+  to be reviewed.
 - Keep new code in the style of the surrounding backend it lives in.
 - Don't commit or push unless asked.
