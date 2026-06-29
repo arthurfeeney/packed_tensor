@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from varlen_natten import packed_tensor
+from packed_tensor import packed_tensor
 
 def test_packed_tensor_empty():
     empty = packed_tensor.empty(((2, 3), (4, 3)), device="cpu", dtype=torch.float32)
@@ -29,3 +29,27 @@ def test_mixed_last_dim_assert():
     shapes = ((2, 3), (4, 5))
     with pytest.raises(AssertionError):
         packed_tensor.empty(shapes)
+
+def test_from_list():
+    tensors = [
+        torch.zeros((3, 4, 5), device="cpu", dtype=torch.float32),
+        torch.ones((6, 7, 5), device="cpu", dtype=torch.float32)
+    ]
+
+    pt = packed_tensor.from_list(tensors)
+    assert torch.all(pt[0] == 0)
+    assert torch.all(pt[1] == 1)
+
+
+def test_from_list_stride():
+    ones = torch.ones((6, 7, 5), device="cpu", dtype=torch.float32)
+    tensors = [
+        torch.zeros((3, 4, 5), device="cpu", dtype=torch.float32),
+        ones.permute(1, 0, 2)
+    ]
+
+    pt = packed_tensor.from_list(tensors)
+    assert torch.all(pt[0] == 0)
+    assert torch.all(pt[1] == 1)
+    assert pt.shape(1) == (7, 6, 5)
+    assert pt.stride(1) == (5, 35, 1)

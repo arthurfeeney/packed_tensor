@@ -8,8 +8,8 @@ rather than going through per-tensor indexing.
 import pytest
 import torch
 
-from varlen_natten import packed_tensor_functions
-from varlen_natten.packed_tensor import empty
+from packed_tensor import packed_tensor_functions
+from packed_tensor.packed_tensor import empty
 
 SHAPES = [(2, 3, 4), (5, 1, 4), (3, 3, 4)]
 GENERATED_INITIALIZERS = ["zeros", "ones", "normal_", "randn", "rand"]

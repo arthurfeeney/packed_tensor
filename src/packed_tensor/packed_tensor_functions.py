@@ -2,9 +2,9 @@ from typing import Callable
 
 import torch
 
-from .packed_tensor import PackedTensor, empty
+from .packed_tensor import Indexing, PackedTensor, empty
 
-# public initializer name -> (in-place buffer method, pre-bound positional args)
+# public initializer name -> (torch in-place buffer method, pre-bound positional args)
 _INITIALIZERS = {
     "zeros": ("fill_", (0,)),
     "ones": ("fill_", (1,)),
@@ -46,8 +46,12 @@ def _make_elementwise(
     name: str, op: Callable[[torch.Tensor], torch.Tensor]
 ) -> Callable[[PackedTensor], PackedTensor]:
     def elementwise(packed: PackedTensor) -> PackedTensor:
-        result = empty(
-            packed.shape(),
+        result = PackedTensor(
+            indexing=Indexing(
+                packed.shape(),
+                packed.stride(),
+                packed.end_offset()
+            ),
             device=packed._buffer.device,
             dtype=packed._buffer.dtype,
         )

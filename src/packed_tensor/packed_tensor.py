@@ -5,6 +5,8 @@ from typing import List, Optional, Tuple
 import torch
 
 def _assert_shapes(shapes) -> None:
+    # all shapes must have the same number of dimensions,
+    # and the last dimension must have the same size across all tensors
     assert all([len(shapes[0]) == len(shape) for shape in shapes])
     assert all([shapes[0][-1] == shape[-1] for shape in shapes])
 
@@ -58,7 +60,7 @@ class PackedTensor:
     def __getitem__(self, idx):
         start_idx, _ = self._get_indices(idx)
         return self._buffer.as_strided(
-            self._indexing.shapes[idx], self._indexing.strides[idx], start_idx
+            self.shape(idx), self.stride(idx), start_idx
         )
 
     def data_ptr(self):
@@ -94,7 +96,7 @@ def _list_of_tuple(tensor):
     return [tuple(row) for row in tensor.tolist()]
 
 
-def empty(shapes, device: torch.device = None, dtype: torch.dtype = None):
+def empty(shapes, device: torch.device = None, dtype: torch.dtype = None) -> PackedTensor:
     _assert_shapes(shapes)
     shapes_tensor = torch.tensor(shapes, dtype=torch.int64, device="cpu")
     strides = _row_major_strides(shapes_tensor)
@@ -105,3 +107,32 @@ def empty(shapes, device: torch.device = None, dtype: torch.dtype = None):
         tuple(end_offsets.tolist()),
     )
     return PackedTensor(indexing, device, dtype)
+
+def from_list(tensors: List[torch.Tensor]) -> PackedTensor:
+    shapes = [tuple(tensor.shape) for tensor in tensors]
+    strides = [tuple(tensor.stride()) for tensor in tensors]
+    end_offsets = [math.prod(shape) for shape in shapes]
+    for idx in range(1, len(end_offsets)):
+        end_offsets[idx] *= end_offsets[idx - 1]
+
+    device = tensors[0].device
+    dtype = tensors[0].dtype
+    assert all(tensor.device == device for tensor in tensors)
+    assert all(tensor.dtype == dtype for tensor in tensors)
+
+    pt = PackedTensor(
+        indexing=Indexing(
+            shapes=shapes,
+            strides=strides,
+            end_offsets=end_offsets
+        ),
+        device=device,
+        dtype=dtype
+    )
+
+    # Note that copy_ ignores stride. tensor is copied based
+    # on memory contiguity.
+    for idx, tensor in enumerate(tensors):
+        pt[idx].copy_(tensor)
+
+    return pt
