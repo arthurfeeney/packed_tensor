@@ -1,16 +1,15 @@
 # Packed Tensor 
 
-An implementation of packed multidimensional tensors. This is intended
-to simplify working with (say) images of different resolutions and aspect ratios.
+A utility library for PyTorch that supports batches of variable-sized multidimensional tensors. 
+This is intended to simplify training on (say) images of different resolutions and aspect ratios,
+where padding may not always be an effective option.
 
-Packed tensors keep a collection of multiple, variable sized tensors in a single buffer
+A `PackedTensor` keeps a collection of multiple, variable sized tensors "packed" into a single buffer
 and applies single kernels to them.
-
-This is similar to PyTorch's nested tensors, which supports one variable axis size.
 
 **Goals**
 1. support varlen neighborhood attention
-2. support CNNs
+2. support CNNs and related pooling operations
 3. be fully compatible with torch.compile
 
 ## Install
