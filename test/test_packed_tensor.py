@@ -87,3 +87,28 @@ def test_from_list_stride():
     assert torch.all(pt[1] == 1)
     assert pt.shape(1) == (7, 6, 5)
     assert pt.stride(1) == (30, 5, 1) # converted to be contiguous
+
+    l = pt.tolist()
+    assert len(l) == 2
+    assert torch.all(l[0] == tensors[0])
+    assert l[0].shape == tensors[0].shape
+
+
+def test_from_list_end_offsets_are_cumulative():
+    # Distinct extents and fill values per item so a product-based (rather than
+    # cumulative-sum) offset misroutes items or reads out of bounds.
+    tensors = [
+        torch.full((2, 3), 0.0, device="cpu", dtype=torch.float32),
+        torch.full((4, 3), 1.0, device="cpu", dtype=torch.float32),
+        torch.full((5, 3), 2.0, device="cpu", dtype=torch.float32),
+    ]
+
+    pt = packed_tensor.from_list(tensors)
+
+    expected_end_offsets = (2 * 3, 2 * 3 + 4 * 3, 2 * 3 + 4 * 3 + 5 * 3)
+    assert pt.end_offset() == expected_end_offsets
+    assert pt._buffer.numel() == expected_end_offsets[-1]
+
+    for idx, tensor in enumerate(tensors):
+        assert pt.shape(idx) == tuple(tensor.shape)
+        assert torch.all(pt[idx] == tensor)

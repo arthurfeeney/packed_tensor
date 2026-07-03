@@ -9,14 +9,17 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "natten>=0.21.6",
     "numpy>=2.2.6",
     "torch>=2.12.1",
 ]
 
 [dependency-groups]
 dev = [
+  "matplotlib>=3.10.9",
   "pytest >=8.1.1,<9",
-  "ruff"
+  "ruff",
+  "imgcat"
 ]
 
 [tool.uv.build-backend]

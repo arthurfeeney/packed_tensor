@@ -46,16 +46,7 @@ def _make_elementwise(
     name: str, op: Callable[[torch.Tensor], torch.Tensor]
 ) -> Callable[[PackedTensor], PackedTensor]:
     def elementwise(packed: PackedTensor) -> PackedTensor:
-        result = PackedTensor(
-            indexing=Indexing(
-                packed.shape(),
-                packed.stride(),
-                packed.end_offset()
-            ),
-            device=packed._buffer.device,
-            dtype=packed._buffer.dtype,
-        )
-        result._buffer.copy_(op(packed._buffer))
+        result = packed.apply(op)
         return result
 
     elementwise.__name__ = name
