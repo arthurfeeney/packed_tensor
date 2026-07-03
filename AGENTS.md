@@ -20,8 +20,9 @@ implementations of the "same" thing in different languages — that is the point
 1. Use descriptive variable, function, and class names. You should never use single-letter names.
 2. Do not over comment. Do not write comments for things can easily be understood by reading the code.
 3. Do not comment WHAT the code is doing, describe WHY the code was written as is.
-4. Avoid duplicating complex blocks of code. If two blocks have a similar large code path, just make a function.
-5. All code should pass `ruff check`  
+4. Do not add big comments at the top of files explaining the contents of the file.
+5. Avoid duplicating complex blocks of code. If two blocks have a similar large code path, just make a function.
+6. All code should pass `ruff check`  
 
 ## Backends
 
@@ -41,18 +42,25 @@ variant, add or update the PyTorch reference first, then port to other backends.
 
 ### Layout
 
-Keep each backend in its own subtree so they don't bleed into each other. 
+Keep each backend in its own file or subtree so they don't bleed into each other. 
+Simpler implementations can fit in a single file. Some more complicated implementations
+can go in a subtree if they need multiple files.
 Suggested shape (create directories as needed):
 
 ```
-src/packed_tensor/natten/
-  pytorch/      # eager + flex_attention impls
+src/packed_tensor/neighbor_attn/
+  common.py         # shared utilities
+  neighbor_attn.py  # dispatch to different backends
+src/packed_tensor/neighbor_attn/backend/
+  reference.py  # pytorch eager
+  flex_attn.py  # flex_attention implementation
   triton/       # triton kernels + wrappers
   cuda/         # CUDA sources + torch extension bindings
   cutedsl/      # CuteDSL implementations
-  common/       # shared, backend-agnostic helpers (shapes, masks, reference math)
 tests/          # pytest correctness tests
 benchmarks/     # throughput / memory benchmarks
+  neighbor_attn/  # benchmarks for different backends
+  conv/           # benchmarks for different backends
 ```
 
 Shared, backend-agnostic logic (e.g. neighborhood index math, mask construction,
