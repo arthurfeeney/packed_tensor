@@ -117,15 +117,15 @@ def test_from_list_end_offsets_are_cumulative():
 def test_pad_to_multiple():
     tensors = [
         torch.randn((3, 4, 5), device="cpu", dtype=torch.float32),
-        torch.randn((16, 7, 5), device="cpu", dtype=torch.float32),
+        torch.randn((16, 17, 5), device="cpu", dtype=torch.float32),
     ]
     pt = packed_tensor.from_list(tensors)
 
-    padded = packed_tensor.pad_to_multiple(pt, 16)
+    padded = packed_tensor.pad_to_multiple(pt, multiple=16)
 
     # Each dim rounds up to the next multiple of 16; already-aligned dims stay.
-    assert padded.shape(0) == (16, 16, 16)
-    assert padded.shape(1) == (16, 16, 16)
+    assert padded.shape(0) == (16, 16, 5)
+    assert padded.shape(1) == (16, 32, 5)
 
     for idx, tensor in enumerate(tensors):
         height, width, channels = tensor.shape

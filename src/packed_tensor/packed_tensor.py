@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 import math
 import operator
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import torch
 
@@ -118,7 +118,7 @@ class PackedTensor:
         return self._buffer.data_ptr()
 
     def dim(self):
-        return len(self._indexing.shape[0])
+        return len(self._indexing.shapes[0])
 
     def stride(self, idx=None):
         if idx is None:
@@ -249,14 +249,38 @@ def _round_up_to_multiple(value: int, multiple: int) -> int:
     return ((value + multiple - 1) // multiple) * multiple
 
 
+def _as_tuple(value: Optional[Union[int, Sequence[int]]]) -> Optional[Tuple[int, ...]]:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return (value,)
+    return tuple(value)
+
+
 def pad_to_multiple(
     packed: PackedTensor,
-    multiple: int = 16
-    fill_value: float = 0
+    multiple: int = 16,
+    fill_value: float = 0,
+    dim: Optional[Union[int, Tuple[int, ...]]] = None,
+    exclude_dim: Optional[Union[int, Tuple[int, ...]]] = None
 ) -> PackedTensor:
+    assert dim is None or exclude_dim is None
+
+    dim = _as_tuple(dim)
+    exclude_dim = _as_tuple(exclude_dim)
+
+    dims_to_pad = None
+    if dim is not None:
+        dims_to_pad = dim
+    elif exclude_dim is not None:
+        dims_to_pad = tuple(set(range(packed.dim())) - set(exclude_dim))
+
+    if dims_to_pad is None:
+        dims_to_pad = tuple(range(packed.dim() - 1))
+
     padded_shapes = [
-        tuple(_round_up_to_multiple(dim, multiple) for dim in shape)
-        for shape in packed.shape()
+        tuple((_round_up_to_multiple(size, multiple) if idx in dims_to_pad else size) for idx, size in enumerate(tensor_shape))
+        for tensor_shape in packed.shape()
     ]
     result = empty(padded_shapes, device=packed.device, dtype=packed.dtype)
     result.fill_(fill_value)
@@ -267,10 +291,10 @@ def pad_to_multiple(
 
 
 def empty(
-    shapes, device: torch.device = None, dtype: torch.dtype = None
+    shapes: Union[torch.Tensor, Sequence[int]], device: torch.device = None, dtype: torch.dtype = None
 ) -> PackedTensor:
     _assert_shapes(shapes)
-    shapes_tensor = torch.tensor(shapes, dtype=torch.int64, device="cpu")
+    shapes_tensor = torch.as_tensor(shapes, dtype=torch.int64, device="cpu")
     strides = _row_major_strides(shapes_tensor)
     end_offsets = torch.cumsum(shapes_tensor.prod(dim=1), dim=0)
     indexing = Indexing(
