@@ -20,7 +20,7 @@ implementations of the "same" thing in different languages — that is the point
 1. Use descriptive variable, function, and class names. You should never use single-letter names.
 2. Do not over comment. Do not write comments for things can easily be understood by reading the code.
 3. Do not comment WHAT the code is doing, describe WHY the code was written as is.
-4. Do not add big comments at the top of files explaining the contents of the file.
+4. Do not add big comments or doc strings at the top of files explaining the contents of the file.
 5. Avoid duplicating complex blocks of code. If two blocks have a similar large code path, just make a function.
 6. All code should pass `ruff check`  
 
@@ -33,7 +33,7 @@ which are kept **mostly separate** from one another:
    PyTorch and `torch.nn.attention.flex_attention`. These are the readable,
    correctness-defining versions.
 2. **Triton** — fused Triton kernels.
-3. **CUDA** — hand-written CUDA kernels exposed through a torch C++/CUDA extension.
+3. **CUDA** — CUDA kernels exposed through a torch C++/CUDA extension.
 4. **CuteDSL** — CUTLASS CuteDSL implementations.
 
 Treat the PyTorch/FlexAttention path as a **source of truth** for semantics.
