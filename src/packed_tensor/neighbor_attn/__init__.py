@@ -1,3 +1,3 @@
-from packed_tensor.neighbor_attn.neighbor_attn import Backend, neighbor_attn
+from packed_tensor.neighbor_attn.neighbor_attn import NeighborAttnBackend, neighbor_attn
 
-__all__ = ["Backend", "neighbor_attn"]
+__all__ = ["NeighborAttnBackend", "neighbor_attn"]

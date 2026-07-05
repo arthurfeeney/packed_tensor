@@ -7,14 +7,14 @@ from packed_tensor.conv.backend import im2col, loop
 from packed_tensor.packed_tensor import PackedTensor
 
 
-class Backend(Enum):
+class ConvBackend(Enum):
     LOOP = "loop"
     IM2COL = "im2col"
 
 
 _DISPATCH = {
-    Backend.LOOP: loop.conv,
-    Backend.IM2COL: im2col.conv,
+    ConvBackend.LOOP: loop.conv,
+    ConvBackend.IM2COL: im2col.conv,
 }
 
 
@@ -24,7 +24,7 @@ def conv2d(
     bias: Optional[torch.Tensor] = None,
     stride: Union[int, Sequence[int]] = 1,
     padding: Union[int, Sequence[int]] = 0,
-    backend: Union[Backend, str] = Backend.LOOP,
+    backend: Union[ConvBackend, str] = ConvBackend.LOOP,
 ) -> PackedTensor:
     """2-D convolution over a packed batch of variable-resolution images.
 
@@ -42,7 +42,7 @@ def conv3d(
     bias: Optional[torch.Tensor] = None,
     stride: Union[int, Sequence[int]] = 1,
     padding: Union[int, Sequence[int]] = 0,
-    backend: Union[Backend, str] = Backend.LOOP,
+    backend: Union[ConvBackend, str] = ConvBackend.LOOP,
 ) -> PackedTensor:
     """3-D convolution over a packed batch of variable-resolution volumes.
 
@@ -54,5 +54,5 @@ def conv3d(
 
 
 def _dispatch(images, weight, bias, stride, padding, backend):
-    backend = Backend(backend)
+    backend = ConvBackend(backend)
     return _DISPATCH[backend](images, weight, bias, stride, padding)

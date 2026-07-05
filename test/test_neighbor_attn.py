@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from packed_tensor import packed_tensor
-from packed_tensor.neighbor_attn import Backend, neighbor_attn
+from packed_tensor.neighbor_attn import NeighborAttnBackend, neighbor_attn
 from packed_tensor.neighbor_attn.backend import flex_attn
 
 
@@ -25,7 +25,7 @@ def test_dispatch_flex_matches_backend():
     spatial_shapes = [(5, 6), (4, 7)]
     query, key, value = _packed_qkv(spatial_shapes, num_heads=2, head_dim=8)
 
-    dispatched = neighbor_attn(query, key, value, kernel_size=3, backend=Backend.FLEX)
+    dispatched = neighbor_attn(query, key, value, kernel_size=3, backend=NeighborAttnBackend.FLEX)
     direct = flex_attn.natten(query, key, value, kernel_size=3)
 
     for idx, spatial_shape in enumerate(spatial_shapes):
@@ -38,7 +38,7 @@ def test_dispatch_flex_matches_backend():
 
 def test_dispatch_accepts_string_backend():
     query, key, value = _packed_qkv([(5, 6)], num_heads=2, head_dim=8)
-    from_enum = neighbor_attn(query, key, value, kernel_size=3, backend=Backend.FLEX)
+    from_enum = neighbor_attn(query, key, value, kernel_size=3, backend=NeighborAttnBackend.FLEX)
     from_string = neighbor_attn(query, key, value, kernel_size=3, backend="flex")
     torch.testing.assert_close(from_string[0], from_enum[0])
 
@@ -48,9 +48,9 @@ def test_dispatch_backends_agree():
     spatial_shapes = [(6, 6), (5, 4)]
     query, key, value = _packed_qkv(spatial_shapes, num_heads=2, head_dim=8)
 
-    flex_result = neighbor_attn(query, key, value, kernel_size=3, backend=Backend.FLEX)
+    flex_result = neighbor_attn(query, key, value, kernel_size=3, backend=NeighborAttnBackend.FLEX)
     natten_result = neighbor_attn(
-        query, key, value, kernel_size=3, backend=Backend.NATTEN
+        query, key, value, kernel_size=3, backend=NeighborAttnBackend.NATTEN
     )
 
     for idx, spatial_shape in enumerate(spatial_shapes):

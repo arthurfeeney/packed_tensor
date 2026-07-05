@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 
 from packed_tensor import packed_tensor
-from packed_tensor.conv import Backend, conv2d, conv3d
+from packed_tensor.conv import ConvBackend, conv2d, conv3d
 
 _DTYPES = [
     (torch.float32, 1e-4, 1e-5),
@@ -38,7 +38,7 @@ def _reference(images, weight, bias, stride, padding, convolution):
     return outputs
 
 
-@pytest.mark.parametrize("backend", [Backend.LOOP, Backend.IM2COL])
+@pytest.mark.parametrize("backend", [ConvBackend.LOOP, ConvBackend.IM2COL])
 @pytest.mark.parametrize("dtype,rtol,atol", _DTYPES)
 @pytest.mark.parametrize(
     "stride,padding",
@@ -59,7 +59,7 @@ def test_conv2d_matches_torch(backend, dtype, rtol, atol, stride, padding):
         torch.testing.assert_close(result[idx], expected_item, rtol=rtol, atol=atol)
 
 
-@pytest.mark.parametrize("backend", [Backend.LOOP, Backend.IM2COL])
+@pytest.mark.parametrize("backend", [ConvBackend.LOOP, ConvBackend.IM2COL])
 @pytest.mark.parametrize("dtype,rtol,atol", _DTYPES)
 @pytest.mark.parametrize("stride,padding", [(1, 0), (1, 1), (2, 1)])
 def test_conv3d_matches_torch(backend, dtype, rtol, atol, stride, padding):
@@ -77,7 +77,7 @@ def test_conv3d_matches_torch(backend, dtype, rtol, atol, stride, padding):
         torch.testing.assert_close(result[idx], expected_item, rtol=rtol, atol=atol)
 
 
-@pytest.mark.parametrize("backend", [Backend.LOOP, Backend.IM2COL])
+@pytest.mark.parametrize("backend", [ConvBackend.LOOP, ConvBackend.IM2COL])
 @pytest.mark.parametrize("stride,padding", [(1, 0), (2, 1), (1, 2)])
 def test_conv2d_bfloat16_matches_fp32(backend, stride, padding):
     torch.manual_seed(0)
@@ -102,7 +102,7 @@ def test_conv2d_bfloat16_matches_fp32(backend, stride, padding):
         )
 
 
-@pytest.mark.parametrize("backend", [Backend.LOOP, Backend.IM2COL])
+@pytest.mark.parametrize("backend", [ConvBackend.LOOP, ConvBackend.IM2COL])
 @pytest.mark.parametrize("stride,padding", [(1, 0), (2, 1)])
 def test_conv3d_bfloat16_matches_fp32(backend, stride, padding):
     torch.manual_seed(0)
@@ -131,8 +131,8 @@ def test_conv2d_without_bias():
     images = _packed_images([(6, 6), (5, 7)], in_channels=3, dtype=torch.float64)
     weight = torch.randn(4, 3, 3, 3, dtype=torch.float64)
 
-    loop_result = conv2d(images, weight, backend=Backend.LOOP)
-    im2col_result = conv2d(images, weight, backend=Backend.IM2COL)
+    loop_result = conv2d(images, weight, backend=ConvBackend.LOOP)
+    im2col_result = conv2d(images, weight, backend=ConvBackend.IM2COL)
 
     for idx in range(len(images.shape())):
         torch.testing.assert_close(im2col_result[idx], loop_result[idx])
@@ -141,7 +141,7 @@ def test_conv2d_without_bias():
 def test_dispatch_accepts_string_backend():
     images = _packed_images([(6, 6)], in_channels=3, dtype=torch.float64)
     weight = torch.randn(4, 3, 3, 3, dtype=torch.float64)
-    from_enum = conv2d(images, weight, backend=Backend.IM2COL)
+    from_enum = conv2d(images, weight, backend=ConvBackend.IM2COL)
     from_string = conv2d(images, weight, backend="im2col")
     torch.testing.assert_close(from_string[0], from_enum[0])
 
