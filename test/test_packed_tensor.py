@@ -112,3 +112,85 @@ def test_from_list_end_offsets_are_cumulative():
     for idx, tensor in enumerate(tensors):
         assert pt.shape(idx) == tuple(tensor.shape)
         assert torch.all(pt[idx] == tensor)
+
+
+def test_pad_to_multiple():
+    tensors = [
+        torch.randn((3, 4, 5), device="cpu", dtype=torch.float32),
+        torch.randn((16, 7, 5), device="cpu", dtype=torch.float32),
+    ]
+    pt = packed_tensor.from_list(tensors)
+
+    padded = packed_tensor.pad_to_multiple(pt, 16)
+
+    # Each dim rounds up to the next multiple of 16; already-aligned dims stay.
+    assert padded.shape(0) == (16, 16, 16)
+    assert padded.shape(1) == (16, 16, 16)
+
+    for idx, tensor in enumerate(tensors):
+        height, width, channels = tensor.shape
+        region = padded[idx][:height, :width, :channels]
+        torch.testing.assert_close(region, tensor)
+        # Everything outside the original extent is zero.
+        leftover = padded[idx].clone()
+        leftover[:height, :width, :channels] = 0
+        assert torch.all(leftover == 0)
+
+
+def test_elementwise_operators_with_scalar():
+    torch.manual_seed(0)
+    pt = packed_tensor.from_list([torch.randn(2, 3), torch.randn(4, 3)])
+
+    for idx in range(2):
+        torch.testing.assert_close((pt + 2.0)[idx], pt[idx] + 2.0)
+        torch.testing.assert_close((pt - 2.0)[idx], pt[idx] - 2.0)
+        torch.testing.assert_close((pt * 3.0)[idx], pt[idx] * 3.0)
+        torch.testing.assert_close((pt / 2.0)[idx], pt[idx] / 2.0)
+
+
+def test_elementwise_operators_reflected():
+    torch.manual_seed(0)
+    pt = packed_tensor.from_list([torch.randn(2, 3), torch.randn(4, 3)])
+
+    for idx in range(2):
+        torch.testing.assert_close((2.0 + pt)[idx], 2.0 + pt[idx])
+        torch.testing.assert_close((2.0 - pt)[idx], 2.0 - pt[idx])
+        torch.testing.assert_close((3.0 * pt)[idx], 3.0 * pt[idx])
+        torch.testing.assert_close((2.0 / pt)[idx], 2.0 / pt[idx])
+
+
+def test_elementwise_operators_between_packed_tensors():
+    torch.manual_seed(0)
+    left = packed_tensor.from_list([torch.randn(2, 3), torch.randn(4, 3)])
+    right = packed_tensor.from_list([torch.randn(2, 3), torch.randn(4, 3)])
+
+    for idx in range(2):
+        torch.testing.assert_close((left + right)[idx], left[idx] + right[idx])
+        torch.testing.assert_close((left - right)[idx], left[idx] - right[idx])
+        torch.testing.assert_close((left * right)[idx], left[idx] * right[idx])
+        torch.testing.assert_close((left / right)[idx], left[idx] / right[idx])
+
+
+def test_elementwise_operator_is_out_of_place():
+    torch.manual_seed(0)
+    pt = packed_tensor.from_list([torch.randn(2, 3), torch.randn(4, 3)])
+    before = pt._buffer.clone()
+    _ = pt + 1.0
+    assert torch.equal(pt._buffer, before)
+
+
+def test_elementwise_operator_mismatched_packing_raises():
+    left = packed_tensor.from_list([torch.randn(2, 3), torch.randn(4, 3)])
+    right = packed_tensor.from_list([torch.randn(5, 3)])
+    with pytest.raises(AssertionError):
+        _ = left + right
+
+
+def test_pad_to_multiple_noop_when_aligned():
+    tensors = [torch.randn((16, 32, 16), device="cpu", dtype=torch.float32)]
+    pt = packed_tensor.from_list(tensors)
+
+    padded = packed_tensor.pad_to_multiple(pt, 16)
+
+    assert padded.shape(0) == (16, 32, 16)
+    torch.testing.assert_close(padded[0], tensors[0])

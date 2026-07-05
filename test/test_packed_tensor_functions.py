@@ -18,6 +18,13 @@ ELEMENTWISE = {
     "relu": torch.relu,
     "gelu": torch.nn.functional.gelu,
 }
+# Reference is the torch op applied per item over the last (feature) dimension.
+VECTOR = {
+    "layer_norm": lambda item: torch.nn.functional.layer_norm(item, item.shape[-1:]),
+    "rms_norm": lambda item: torch.nn.functional.rms_norm(item, item.shape[-1:]),
+    "softmax": lambda item: torch.softmax(item, dim=-1),
+    "log_softmax": lambda item: torch.log_softmax(item, dim=-1),
+}
 
 
 def test_all_exports_expected_names():
@@ -25,6 +32,7 @@ def test_all_exports_expected_names():
         "empty",
         *GENERATED_INITIALIZERS,
         *ELEMENTWISE,
+        *VECTOR,
     }
 
 
@@ -92,3 +100,37 @@ def test_elementwise_is_out_of_place(name):
     before = source._buffer.clone()
     packed_tensor_functions.relu(source)
     assert torch.equal(source._buffer, before)
+
+
+@pytest.mark.parametrize("name, reference", VECTOR.items())
+def test_vector_matches_per_item_torch(name, reference):
+    torch.manual_seed(0)
+    source = packed_tensor_functions.randn(SHAPES, dtype=torch.float32)
+    result = getattr(packed_tensor_functions, name)(source)
+    for idx in range(len(SHAPES)):
+        torch.testing.assert_close(result[idx], reference(source[idx]))
+
+
+@pytest.mark.parametrize("name", VECTOR)
+def test_vector_is_out_of_place(name):
+    torch.manual_seed(0)
+    source = packed_tensor_functions.randn(SHAPES, dtype=torch.float32)
+    before = source._buffer.clone()
+    getattr(packed_tensor_functions, name)(source)
+    assert torch.equal(source._buffer, before)
+
+
+def test_layer_norm_forwards_weight_and_bias():
+    torch.manual_seed(0)
+    source = packed_tensor_functions.randn(SHAPES, dtype=torch.float32)
+    channels = SHAPES[0][-1]
+    weight = torch.randn(channels)
+    bias = torch.randn(channels)
+
+    result = packed_tensor_functions.layer_norm(source, weight=weight, bias=bias)
+
+    for idx in range(len(SHAPES)):
+        expected = torch.nn.functional.layer_norm(
+            source[idx], (channels,), weight=weight, bias=bias
+        )
+        torch.testing.assert_close(result[idx], expected)

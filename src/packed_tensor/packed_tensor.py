@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from itertools import pairwise
 import math
-from typing import Callable, List, Optional, Tuple
+import operator
+from typing import Callable, List, Optional, Tuple, Union
 
 import torch
 
@@ -116,6 +117,9 @@ class PackedTensor:
     def data_ptr(self):
         return self._buffer.data_ptr()
 
+    def dim(self):
+        return len(self._indexing.shape[0])
+
     def stride(self, idx=None):
         if idx is None:
             return self._indexing.strides
@@ -164,6 +168,45 @@ class PackedTensor:
         pt.apply_(op)
         return pt
 
+    def _elementwise_binary(self, other, op, reflected: bool = False):
+        # ``other`` is either another PackedTensor with the same packing (its
+        # buffer aligns element for element) or a scalar/tensor that broadcasts
+        # over the flat buffer.
+        if isinstance(other, PackedTensor):
+            assert self.shape() == other.shape(), (
+                "elementwise ops require operands with matching packing"
+            )
+            operand = other._buffer
+        else:
+            operand = other
+        if reflected:
+            return self.apply(lambda buffer: op(operand, buffer))
+        return self.apply(lambda buffer: op(buffer, operand))
+
+    def __add__(self, other):
+        return self._elementwise_binary(other, operator.add)
+
+    def __radd__(self, other):
+        return self._elementwise_binary(other, operator.add, reflected=True)
+
+    def __sub__(self, other):
+        return self._elementwise_binary(other, operator.sub)
+
+    def __rsub__(self, other):
+        return self._elementwise_binary(other, operator.sub, reflected=True)
+
+    def __mul__(self, other):
+        return self._elementwise_binary(other, operator.mul)
+
+    def __rmul__(self, other):
+        return self._elementwise_binary(other, operator.mul, reflected=True)
+
+    def __truediv__(self, other):
+        return self._elementwise_binary(other, operator.truediv)
+
+    def __rtruediv__(self, other):
+        return self._elementwise_binary(other, operator.truediv, reflected=True)
+
     def mm(self, other: torch.Tensor):
         assert other.dim() == 2
         pt = PackedTensor(
@@ -200,6 +243,27 @@ def _row_major_strides(shapes):
 
 def _list_of_tuple(tensor):
     return [tuple(row) for row in tensor.tolist()]
+
+
+def _round_up_to_multiple(value: int, multiple: int) -> int:
+    return ((value + multiple - 1) // multiple) * multiple
+
+
+def pad_to_multiple(
+    packed: PackedTensor,
+    multiple: int = 16
+    fill_value: float = 0
+) -> PackedTensor:
+    padded_shapes = [
+        tuple(_round_up_to_multiple(dim, multiple) for dim in shape)
+        for shape in packed.shape()
+    ]
+    result = empty(padded_shapes, device=packed.device, dtype=packed.dtype)
+    result.fill_(fill_value)
+    for idx, shape in enumerate(packed.shape()):
+        unpadded_region = tuple(slice(0, dim) for dim in shape)
+        result[idx][unpadded_region].copy_(packed[idx])
+    return result
 
 
 def empty(
